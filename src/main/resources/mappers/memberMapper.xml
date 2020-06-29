@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="green.mappers.memberMapper">
+<!-- namespace : 자바클래스에서 maper 를 찾는 경로
+				  다른 mapper와 중복되지 않도록 네임스페이스 기재 -->
+				  
+  <!-- ** SearchCriteria -->
+  <sql id="search">
+  	<choose>
+  		<when test="searchType=='i'.toString()">
+  			and id like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='n'.toString()">
+  			and name like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='r'.toString()">
+  			and rid like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='in'.toString()">
+  			and id like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or name like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='ir'.toString()">
+  			and id like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or rid like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='inr'.toString()">
+  			and id like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or name like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or rid like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<otherwise> ) </otherwise>
+  	</choose>
+  </sql>
+  
+  <select id="searchRowCount" resultType="int">
+  	select count(*) from member where ( 1=1 
+	<include refid="search"></include>
+  </select>		  
+				
+  <select id="searchList" resultType="vo.MemberVO">
+   	select id,password,name, DECODE(lev,'A','관리자','B','나무','C', '잎새', '새싹') lev,
+	point,weight,birthd,rid from  
+	  (select m.* , ROW_NUMBER() OVER(order by id asc) rnum 
+	  from member m where 1=1 
+	  <include refid="search"></include>
+	  where rnum between #{sno} and #{eno}
+  </select>			  
+				  
+  <!-- Member pagingList() -->				  
+  <select id="totalRowCount" resultType="int">
+	select count(*) from member
+  </select>
+
+  <select id="pageList" resultType="vo.MemberVO">
+	select * from 
+	  (select m.* , ROW_NUMBER() OVER(order by id asc) rnum from member m) 
+	  where rnum between #{sno} and #{eno}
+  </select>				  
+
+  <!-- memberList() 
+  	select * from member order by id -->
+  <select id="selectList" resultType="vo.MemberVO">
+	select id,password,name, DECODE(lev,'A','관리자','B','나무','C', '잎새', '새싹') lev,
+	point,weight,birthd,rid,uploadfile from member order by id
+  </select>
+  
+  <!-- memberDetail() -->
+  <select id="selectOne" resultType="vo.MemberVO">
+  	select * from member where id=#{id}
+  </select>
+
+  <!-- memberJoin() -->
+  <insert id="insert">
+	insert into member values(#{id},#{password},#{name}
+	,#{lev},#{birthd},#{point},#{weight},#{rid},#{uploadfile})
+  </insert>	
+  
+  <!-- memberUpdate() -->
+  <update id="update">
+	update member set password=#{password},name=#{name},lev=#{lev},birthd=#{birthd}
+	,point=#{point},weight=#{weight},rid=#{rid},uploadfile=#{uploadfile} where id=#{id}
+  </update>
+
+  <!-- memberDelete() -->
+  <delete id="delete">
+	delete from member where id=#{id}
+  </delete>
+
+</mapper>
+
+<!-- #{id}
+ => getID() or setID("..") 
+ => 해당되는 값
+ => Map 타입의 경우 키값이 id 인 값을 찾음  -->
+<!-- 
+  <select id="getTime" resultType="string">
+  select now()
+  </select>
+-->

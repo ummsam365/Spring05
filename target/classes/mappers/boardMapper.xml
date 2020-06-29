@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="green.mappers.boardMapper">
+<!-- namespace : 자바클래스에서 maper 를 찾는 경로
+				  다른 mapper와 중복되지 않도록 네임스페이스 기재 -->	
+				  
+<!-- SQL 쿼리문에서 비교연산자 사용하는 경우  
+XML에서는  <,>등 비교연산자의 경우 XML규칙상 에러 나기때문에,
+이기호를 연산자로 인식하도록 하기 위해서는 SQL문을 CDATA로 묶어 주어야 한다.
+<![CDATA[ SELECT * FROM table WHERE id > 1 ]]> -->
+
+<!-- <![CDATA[ select seq,title,wid,content,
+  to_char(regdate, 'yyyy/mm/dd/ hh24:mi:ss') regdate,cnt,root,step,indent 
+  from (select b.* , ROW_NUMBER() OVER(order by root desc, step asc) rnum from board b ) 
+  where rnum >= #{sno} and rnum <= #{eno} ]]> -->
+
+<!-- SearchCriteria Test 
+=> searchType 별 검색 조건문 만들기
+=> Sql , include 태그 : 반복되는 쿼리 묶기
+=> CONCAT : 두개의 문자열 합침 
+			3개의 문자열을 합치려면 아래처럼 함수를 함수로 감싸줘야 한다. 
+			( MySql은 3개 가능 )
+-->				  
+
+  <sql id="search">
+  	<choose>
+  		<when test="searchType=='t'.toString()">
+  			and title like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='c'.toString()">
+  			and content like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='w'.toString()">
+  			and id like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='tc'.toString()">
+  			and title like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or content like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='cw'.toString()">
+  			and content like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or id like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<when test="searchType=='tcw'.toString()">
+  			and title like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or content like CONCAT(CONCAT('%',#{keyword}),'%') 
+  			or id like CONCAT(CONCAT('%',#{keyword}),'%'))
+  		</when>
+  		<otherwise> ) </otherwise>
+  	</choose>
+  </sql>
+
+  <select id="searchRowCount" resultType="int">
+  <![CDATA[
+	select count(*) from board where ( seq>0 ]]>
+	<include refid="search"></include>
+  </select>		  
+				
+  <select id="searchList" resultType="vo.BoardVO">
+  <![CDATA[
+	select seq,title,id, 
+	  to_char(regdate,'yyyy/mm/dd/ hh24:mi:ss') regdate,cnt,root, step, indent from 
+	  (select b.* , ROW_NUMBER() OVER(order by root desc, step asc) rnum 
+	  from board b where seq>0 ]]>
+	  <include refid="search"></include>
+	  where rnum between #{sno} and #{eno}
+  </select>				  
+				  
+  <select id="totalRowCount" resultType="int">
+	select count(*) from board
+  </select>
+
+  <select id="pageList" resultType="vo.BoardVO">
+	select seq,title,id, 
+	  to_char(regdate,'yyyy/mm/dd/ hh24:mi:ss') regdate,cnt,root, step, indent from 
+	  (select b.* , ROW_NUMBER() OVER(order by root desc, step asc) rnum from board b) 
+	  where rnum between #{sno} and #{eno}
+  </select>
+
+  <select id="selectList" resultType="vo.BoardVO" >
+	select seq,title,id,to_char(regdate,'yyyy/mm/dd/ hh24:mi:ss') regdate,
+	 cnt, root, step, indent from board order by root desc , step asc
+  </select>
+
+  <select id="selectOne" resultType="vo.BoardVO">
+	select seq,title,id,content, to_char(regdate,'yyyy/mm/dd/ hh24:mi:ss') regdate,
+	 cnt, root, step, indent from board where seq=#{seq}
+  </select>
+  <insert id="insert">
+	insert into board values 
+	 ((select nvl(max(seq), 0)+1 from board),#{title},#{id},#{content},
+	 sysdate,0,(select nvl(max(seq), 0)+1 from board),0,0)
+  </insert>
+  <update id="update">
+	update board set title=#{title}, content=#{content} where seq=#{seq}
+  </update>
+  <delete id="delete">
+	delete board  
+	<if test="seq!=root">where seq=#{seq} </if>
+	<if test="seq==root">where root=#{seq}</if>
+	 <!-- 이 경우는 seq==root 이므로  root=#{seq} 로 비교해도 됨. -->
+  </delete>
+
+  <update id="stepUpdate">
+	update board set step=step+1 where root=#{root} and step>=#{step}
+  </update>
+
+  <insert id="rinsert">
+	insert into board values
+	  ((select nvl(max(seq),0)+1 from board),#{title},#{id},#{content},
+	  sysdate,0,#{root},#{step},#{indent})
+  </insert>
+
+  <update id="countUp">
+	update board set cnt=cnt+1 where seq=#{seq}
+  </update>
+
+</mapper>
+
+<!-- 
+** #{id} : id 의 value 표현
+ => getID() or setID("..") 
+ => Map 타입의 경우 키값이 id 인 값을 찾음  
+
+** ${id} : id 라는 필드 표현 
+ -->
+<!-- 
+  <select id="getTime" resultType="string">
+  select now()
+  </select>				  
+-->				  
+
+  
